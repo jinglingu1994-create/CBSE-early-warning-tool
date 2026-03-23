@@ -31,7 +31,9 @@
 - Variance: Model too complex (overfitting) — solve by adding data or simplifying the model
 - Irreducible Error: Information not present in the data — **cannot be solved by optimizing the model**
 
-**Key Insight**: Irreducible error is fixed *given* a feature set, but not fixed *across* feature sets. Changing the feature set (adding new data sources) can turn previously irreducible portions into reducible ones.
+**Key Insight**: Irreducible error is fixed *given* a feature set, but not fixed *across* feature sets. Changing the feature set (adding new data sources) can turn previously irreducible portions into reducible ones. You're not "reducing irreducible error" — you're redefining the information boundary so that what was previously invisible becomes visible to the model.
+
+**Important Nuance — Human Baseline is a Reference, Not a Ceiling**: Models can surpass human experts because they process more variables simultaneously, see more cases, and maintain consistency. The true ceiling is determined by the information content of the feature set, not by human ability. Use human baseline to gauge progress, but don't stop optimizing just because you've matched it.
 
 **How to Estimate Whether Irreducible Error is High or Low**:
 1. **Human Baseline**: Have domain experts perform the same prediction task — human accuracy serves as a reference ceiling
@@ -89,9 +91,11 @@
 - Correlation does not equal Causation
 
 **Clinical Non-linear Examples**:
-- Body temperature and Sepsis: Both high fever and hypothermia increase risk (U-shaped)
+- Body temperature and Sepsis: Both high fever and hypothermia increase risk (U-shaped). Notably, hypothermic sepsis patients often have worse prognosis — a fact that pure data analysis would miss
 - Serum potassium and arrhythmia: Both hypokalemia and hyperkalemia are dangerous (U-shaped)
 - If a DS only looks at linear correlation, they would wrongly conclude these features are "useless" and remove them
+
+**Key realization**: Most data scientists will NOT proactively check for non-linear relationships. Their standard workflow is Pearson correlation + scatter plot. Domain expertise is needed to flag when a feature might have a non-linear relationship that standard analysis would miss.
 
 **Questions PMs Should Ask in Review Meetings**:
 - "Does this high correlation have a clinical basis?"
@@ -116,11 +120,11 @@
 **PMs should know**: If the team says "we added 50 features," ask "did you run a redundancy check?"
 
 ### 2.4 Confounding + Mediation ⭐⭐⭐
-**What it is**: The DM to MI to HF example. DM affects the outcome through both a direct pathway (diabetic cardiomyopathy) and an indirect pathway (first causing MI, then MI causing HF).
+**What it is**: The DM → MI → HF example. DM affects HF through both a direct pathway (diabetic cardiomyopathy / microvascular damage) and an indirect pathway (DM → MI via atherosclerosis → MI causes myocardial necrosis → HF). MI is both an independent risk factor AND a mediator of DM's effect.
 
 **The most important judgment for PMs**: Is the product for prediction or intervention?
-- **Prediction product**: Include both correlated features — the more accurate, the better
-- **Intervention product**: Must clarify the causal chain, find the upstream cause (controlling DM is more cost-effective than treating MI)
+- **Prediction product**: Include both correlated features — the more accurate, the better. The model doesn't need to understand causation
+- **Intervention product**: Must clarify the causal chain. Controlling DM reduces HF risk through BOTH pathways (direct + MI-mediated), making it a higher-leverage intervention point than treating MI alone
 
 ### 2.5 PM and Data Team Division of Labor ⭐⭐⭐
 | Task | Who Does It | What the PM Does |
@@ -162,6 +166,8 @@
 - Dropping these patients: Model trains only on compliant patients, becomes overly optimistic for non-compliant patients
 - Median imputation: Assumes they are taking medication, equally overly optimistic
 - **Correct approach**: Create `med_data_missing = 1/0` as a new feature, so the model learns that "data absence is itself a risk factor"
+
+**The deeper insight**: Both dropping and imputing can introduce bias in opposite directions. Dropping removes high-risk patients from training. Imputing disguises them as average. The missingness indicator approach is the only one that preserves the clinical signal that "this patient's data is missing for a reason."
 
 **Three Must-Ask Questions for PM Review**:
 1. "What is the missingness rate? Is it random?"
@@ -223,7 +229,9 @@
 
 **How PMs Can Check**: Look at the feature list and ask yourself "At the time we need to make a prediction, does this information actually exist already?" Spending 15 minutes scanning the feature list may be the highest-ROI 15 minutes of the entire project.
 
-**DS may not catch this** — they don't know that mechanical ventilation is only available in the ICU, or that discharge codes are entered only at discharge. Your clinical knowledge serves as a safety guardrail.
+**DS may not catch this** — they don't know that mechanical ventilation is only available in the ICU, or that discharge codes are entered only at discharge. Clinical knowledge serves as a safety guardrail. Data leakage is not about DS incompetence; it's about domain-specific knowledge of clinical workflows, EHR timestamp accuracy, and when data becomes available in practice. Many published papers in top journals have been found to contain undetected data leakage.
+
+**Practical approach**: Reviewing the feature list takes ~15 minutes. For each feature, ask: "At the time we need to make this prediction, does this information actually exist?" This maps directly to clinical reasoning — the same way you assess what's known at admission vs. what's discovered later.
 
 ### 4.4 Model Complexity vs Data Size ⭐⭐⭐
 | Data Size | Suitable Model | PM Action |
@@ -294,4 +302,24 @@
 ### 7.1 Modular Code ⭐⭐
 **What it is**: Each function lives in its own file (data_loader, preprocessing, models, etc.), with main.py connecting them all.
 **PM Perspective**: PMs don't need to write modular code, but should know that good code structure = higher team collaboration efficiency + lower maintenance costs. If the team's code is all in one notebook, that's a red flag.
+
+---
+
+## Key Metrics Concepts
+
+### Accuracy vs AUC vs Sensitivity/Specificity ⭐⭐⭐
+- **Accuracy** = proportion of correct predictions. Simple to explain, but misleading with imbalanced data (e.g., 95% healthy patients → predicting "healthy" for everyone gives 95% accuracy but catches zero at-risk patients)
+- **AUC** = model's overall ability to distinguish positive from negative cases across all thresholds. Does not depend on a single cutoff
+- **Sensitivity** = of all truly positive cases, how many did the model catch?
+- **Specificity** = of all truly negative cases, how many did the model correctly rule out?
+
+**When to use what**:
+| Audience | Metric |
+|---|---|
+| Executives / non-technical stakeholders | Plain language: "Our model catches 92 out of 100 patients who will develop sepsis" |
+| Clinicians | Sensitivity + Specificity (they understand these) |
+| ML team internal | AUC + full confusion matrix |
+| FDA submission | All of the above, broken down by subgroup |
+
+**In healthcare, the cost of a false negative (missing a sick patient) is almost always higher than a false positive (unnecessary follow-up).** This asymmetry should drive threshold selection.
 
