@@ -1,0 +1,26 @@
+============================================================
+  NBME CBSE Prediction - Model Comparison
+============================================================
+
+Model: Linear Regression
+  Test MAE:  9.15 points
+  Test RMSE: 11.40 points
+  Test R2:   0.374
+  Train R2:  0.522
+  Overfit gap: 0.147 (OK)
+
+Model: Random Forest
+  Test MAE:  9.67 points
+  Test RMSE: 12.14 points
+  Test R2:   0.291
+  Train R2:  0.913
+  Overfit gap: 0.622 (WARNING)
+
+Model: XGBoost
+  Test MAE:  10.07 points
+  Test RMSE: 12.77 points
+  Test R2:   0.216
+  Train R2:  0.986
+  Overfit gap: 0.771 (WARNING)
+
+Best model: Linear Regression (Test R2 = 0.374)
