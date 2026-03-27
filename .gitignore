@@ -7,3 +7,8 @@ dist/
 build/
 .env
 *_PRIVATE*
+
+# Real student data - NEVER push (FERPA protected)
+data/real/
+*.pdf
+output/real/
